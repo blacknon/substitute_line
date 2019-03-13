@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# 入力中の内容をパラメータ展開方式で置換するfunction
+function __substitute_line() {
+  # 変数を定義
+  local -r ANSI_CURSOR_GET=$'\E[6n' # カーソル位置の取得用ANSI Escape
+
+  # 入力中の内容を変数に代入
+  # shellに応じて処理を変える
+  case $(basename ${SHELL}) in
+    zsh*)  local BUF=${BUFFER} ;;
+    bash*) local BUF=${READLINE_LINE} ;;
+  esac
+
+  # promptの下に置換用promptを表示させる
+
+}
+
