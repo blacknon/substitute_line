@@ -2,8 +2,63 @@
 
 # 入力中の内容をパラメータ展開方式で置換するfunction
 function __substitute_line() {
-  # 変数を定義
+  ## ----------
+  # shopt/setopt
+  ## ----------
+  # set shopt(get windows size.)
+  case "${SHELL##*/}" in
+    bash*) shopt -s checkwinsize; (:;:) ;;
+    zsh*)  setopt localoptions ksharrays ;;
+  esac
+
+  ## ----------
+  # variable
+  ## ----------
   local -r ANSI_CURSOR_GET=$'\E[6n' # カーソル位置の取得用ANSI Escape
+
+  local INPUT_KEY # input key code
+  local TMP_KEY # input key code(2nd)
+
+  ## ----------
+  # function
+  ## ----------
+  # @brief:
+  #     get now cursor positon in terminal.
+  # @return:
+  #     NOW_CURSOR_ROW NOW_CURSOR_COLUMN
+  function __get_cursor_position() {
+    # variable
+    local OLD_STTY
+    local NOW_CURSOR
+
+    # move tty
+    exec < /dev/tty
+    OLD_STTY=$(stty -g)
+    stty raw -echo min 0
+
+    # get position data
+    printf "${ANSI_CURSOR_GET}" > /dev/tty
+
+    case "${SHELL##*/}" in
+      bash*) IFS=';' read -r -d R -a CURSOR ;;
+      zsh*)  IFS=';' read -s -d R CURSOR ;;
+    esac
+
+    IFS=$'\n'
+    stty "${OLD_STTY}"
+
+    CURSOR="${CURSOR##*\[}"
+    CURSOR="${CURSOR%;*}"
+
+    NOW_CURSOR_LINE=${CURSOR}
+  }
+
+  # @brief:
+  #     print substitute prompt
+  function __print_substitute_prompt() {
+    local NOW_CURSOR
+
+  }
 
   # 入力中の内容を変数に代入
   # shellに応じて処理を変える
