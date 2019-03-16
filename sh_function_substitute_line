@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 入力中の内容をパラメータ展開方式で置換するfunction
-function __substitute_line() {
+__substitute_line() {
   ## ----------
   # shopt/setopt
   ## ----------
@@ -16,58 +16,186 @@ function __substitute_line() {
   ## ----------
   local -r ANSI_CURSOR_GET=$'\E[6n' # カーソル位置の取得用ANSI Escape
 
-  local INPUT_KEY # input key code
-  local TMP_KEY # input key code(2nd)
+  local buf
+  local old_buf
+  local input # input key code
+  local query # substitute query
+  local now_cursor_line # Now cursor position in terminal(line)
 
   ## ----------
   # function
   ## ----------
   # @brief:
   #     get now cursor positon in terminal.
-  # @return:
-  #     NOW_CURSOR_ROW NOW_CURSOR_COLUMN
-  function __get_cursor_position() {
+  # @return: NOW_CURSOR_ROW
+  __get_cursor_position() {
     # variable
-    local OLD_STTY
-    local NOW_CURSOR
+    local old_stty
+    local cursor
 
     # move tty
     exec < /dev/tty
-    OLD_STTY=$(stty -g)
+    old_stty=$(stty -g)
     stty raw -echo min 0
 
     # get position data
     printf "${ANSI_CURSOR_GET}" > /dev/tty
 
     case "${SHELL##*/}" in
-      bash*) IFS=';' read -r -d R -a CURSOR ;;
-      zsh*)  IFS=';' read -s -d R CURSOR ;;
+      bash*) IFS=';' read -r -d R -a cursor ;;
+      zsh*)  IFS=';' read -s -d R cursor ;;
     esac
 
     IFS=$'\n'
-    stty "${OLD_STTY}"
+    stty "${old_stty}"
 
-    CURSOR="${CURSOR##*\[}"
-    CURSOR="${CURSOR%;*}"
+    cursor="${cursor##*\[}"
+    cursor="${cursor%;*}"
 
-    NOW_CURSOR_LINE=${CURSOR}
+    now_cursor_line=${cursor}
   }
 
   # @brief:
   #     print substitute prompt
-  function __print_substitute_prompt() {
-    local NOW_CURSOR
+  __print_substitute_prompt() {
+    # move cursor
+    printf "\e["$((${now_cursor_line}))";0H" >&2
 
+    # clear line
+    echo $'\e[2K'$'\e[1A' >&2
+
+    # print prompt
+    printf "Sub> ${query}"
+  }
+
+  __print_yn_prompt() {
+    # move cursor
+    printf "\e["$((${now_cursor_line}))";0H" >&2
+
+    # clear line
+    echo $'\e[2K'$'\e[1A' >&2
+
+    # print prompt
+    printf "Ok? [y/n]> "
+  }
+
+  __print_buf() {
+    # move cursor
+    printf "\e["$((${now_cursor_line} + 1))";0H" >&2
+
+    # clear line
+    echo $'\e[2K'$'\e[1A' >&2
+
+    # print prompt
+    printf "   : ${buf}"
+  }
+
+  __clear_print_data() {
+    # move cursor
+    printf "\e["$((${now_cursor_line}))";0H" >&2
+
+    # clear line
+    echo $'\e[2K'$'\e[1A' >&2
+
+    # move cursor
+    printf "\e["$((${now_cursor_line} + 1))";0H" >&2
+
+    # clear line
+    echo $'\e[2K'$'\e[1A' >&2
+
+    # move cursor
+    printf "\e["$((${now_cursor_line}))";0H" >&2
   }
 
   # 入力中の内容を変数に代入
   # shellに応じて処理を変える
   case $(basename ${SHELL}) in
-    zsh*)  local BUF=${BUFFER} ;;
-    bash*) local BUF=${READLINE_LINE} ;;
+    zsh*)  local buf=${BUFFER} ;;
+    bash*) local buf=${READLINE_LINE} ;;
   esac
 
-  # promptの下に置換用promptを表示させる
+  # カーソルの位置情報を取得する
+  __get_cursor_position
+
+  while true
+  do
+    # 置換前のコマンドを2行目に表示する
+    __print_buf
+
+    # promptの下に置換用promptを表示させる
+    __print_substitute_prompt
+
+    # 置換クエリの入力
+    while true
+    do
+      # get input key
+      case "${SHELL##*/}" in
+        bash*) read -rsn1 input </dev/tty ;;
+        zsh*)  read -r -s -k 1 input </dev/tty ;;
+      esac
+
+      case "${input}" in
+        $'\x1B')
+          # no works
+          ;;
+
+        # Delete(Backspace(\x7F)) key
+        $'\x7F')
+          local query_count=${#query}
+          if [[ $query_count -gt 0 ]];then
+            query_count=$((${query_count} - 1))
+            query=${query:0:${query_count}}
+            __print_substitute_prompt
+          fi
+          ;;
+
+        # input Enter key
+        ""|$'\n')
+          break
+          ;;
+
+        # other key
+        *)
+          query=${query}${input}
+          __print_substitute_prompt
+          ;;
+      esac
+    done
+
+    # 入力されたクエリを利用してコマンドを置換
+    old_buf=${buf}
+    buf=$(sed -f <(cat <<< ${query}) <<<${buf} 2>&1)
+
+    # 置換結果を表示する
+    __print_buf
+
+    # y/nキーの入力プロンプトを表示
+    __print_yn_prompt
+
+    case "${SHELL##*/}" in
+        bash*) read -rsn1 input </dev/tty ;;
+        zsh*)  read -r -s -k 1 input </dev/tty ;;
+    esac
+    case "${input}" in
+      "y"|"Y")
+        __clear_print_data
+        break
+        ;;
+      *)
+        # bufを元に戻す
+        buf=${old_buf}
+        __clear_print_data
+        continue
+        ;;
+    esac
+  done
+
+  # 置換結果を反映
+  # shellに応じて処理を変える
+  case $(basename ${SHELL}) in
+    zsh*)  BUFFER=${buf} ;;
+    bash*) READLINE_LINE=${buf} ;;
+  esac
 
 }
 
