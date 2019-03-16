@@ -32,6 +32,8 @@ __substitute_line() {
     # variable
     local old_stty
     local cursor
+    local cursor_line
+    local cursor_column
 
     # move tty
     exec < /dev/tty
@@ -150,7 +152,8 @@ __substitute_line() {
           ;;
 
         # input Enter key
-        ""|$'\n')
+        # ""|$'\n')
+        ""|$'\n'|$'\r')
           break
           ;;
 
@@ -173,8 +176,8 @@ __substitute_line() {
     __print_yn_prompt
 
     case "${SHELL##*/}" in
-        bash*) read -rsn1 input </dev/tty ;;
-        zsh*)  read -r -s -k 1 input </dev/tty ;;
+      bash*) read -rsn1 input </dev/tty ;;
+      zsh*)  read -r -s -k 1 input </dev/tty ;;
     esac
     case "${input}" in
       "y"|"Y")
@@ -193,9 +196,12 @@ __substitute_line() {
   # 置換結果を反映
   # shellに応じて処理を変える
   case $(basename ${SHELL}) in
-    zsh*)  BUFFER=${buf} ;;
+    zsh*)
+      zle .reset-prompt
+      BUFFER=${buf}
+      CURSOR=${#BUFFER}
+      ;;
     bash*) READLINE_LINE=${buf} ;;
   esac
-
 }
 
