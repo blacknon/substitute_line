@@ -1,4 +1,10 @@
 #!/bin/bash
+# Copyright(c) 2019 Blacknon. All rights reserved.
+# Use of this source code is governed by an MIT license
+# that can be found in the LICENSE file.
+
+# TODO(blacknon): Ctrl+Cでキャンセルする処理を追加
+
 
 # 入力中の内容をパラメータ展開方式で置換するfunction
 __substitute_line() {
