@@ -134,13 +134,8 @@ __substitute_line() {
   # 入力中の内容を変数に代入
   # shellに応じて処理を変える
   case $(basename ${SHELL}) in
-<<<<<<< HEAD:substitute_line.bash
-  zsh*) local buf=${BUFFER} ;;
-  bash*) local buf=${READLINE_LINE} ;;
-=======
   zsh*) buf=${BUFFER} ;;
   bash*) buf=${READLINE_LINE} ;;
->>>>>>> refs/remotes/origin/master:sh_function_substitute_line
   esac
 
   # カーソルの位置情報を取得する
