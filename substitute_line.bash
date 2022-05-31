@@ -1,4 +1,9 @@
 #!/bin/bash
+# Copyright(c) 2020 Blacknon. All rights reserved.
+# Use of this source code is governed by an MIT license
+# that can be found in the LICENSE file.
+
+# TODO(blacknon): Ctrl+Cでキャンセルする処理を追加
 
 # 入力中の内容をパラメータ展開方式で置換するfunction
 __substitute_line() {
@@ -31,6 +36,7 @@ __substitute_line() {
   ## ----------
   # function
   ## ----------
+
   # @brief:
   #     get now cursor positon in terminal.
   # @return: NOW_CURSOR_ROW
@@ -115,11 +121,26 @@ __substitute_line() {
     printf "\e["$((${now_cursor_line}))";0H" >&2
   }
 
+  # @brief: trap ctrl + c
+  __trap_2() {
+    buf=${old_buf}
+    echo 1
+    return 1
+  }
+
+  ## ----------
+  # main
+  ## ----------
   # 入力中の内容を変数に代入
   # shellに応じて処理を変える
   case $(basename ${SHELL}) in
+<<<<<<< HEAD:substitute_line.bash
   zsh*) local buf=${BUFFER} ;;
   bash*) local buf=${READLINE_LINE} ;;
+=======
+  zsh*) buf=${BUFFER} ;;
+  bash*) buf=${READLINE_LINE} ;;
+>>>>>>> refs/remotes/origin/master:sh_function_substitute_line
   esac
 
   # カーソルの位置情報を取得する
@@ -183,6 +204,9 @@ __substitute_line() {
     bash*) read -rsn1 input </dev/tty ;;
     zsh*) read -r -s -k 1 input </dev/tty ;;
     esac
+
+    trap '__trap_2;' 2
+
     case "${input}" in
     "y" | "Y")
       __clear_print_data
