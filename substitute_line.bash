@@ -7,8 +7,14 @@ __substitute_line() {
   ## ----------
   # set shopt(get windows size.)
   case "${SHELL##*/}" in
-    bash*) shopt -s checkwinsize; (:;:) ;;
-    zsh*)  setopt localoptions ksharrays ;;
+  bash*)
+    shopt -s checkwinsize
+    (
+      :
+      :
+    )
+    ;;
+  zsh*) setopt localoptions ksharrays ;;
   esac
 
   ## ----------
@@ -18,8 +24,8 @@ __substitute_line() {
 
   local buf
   local old_buf
-  local input # input key code
-  local query # substitute query
+  local input           # input key code
+  local query           # substitute query
   local now_cursor_line # Now cursor position in terminal(line)
 
   ## ----------
@@ -36,16 +42,16 @@ __substitute_line() {
     local cursor_column
 
     # move tty
-    exec < /dev/tty
+    exec </dev/tty
     old_stty=$(stty -g)
     stty raw -echo min 0
 
     # get position data
-    printf "${ANSI_CURSOR_GET}" > /dev/tty
+    printf "${ANSI_CURSOR_GET}" >/dev/tty
 
     case "${SHELL##*/}" in
-      bash*) IFS=';' read -r -d R -a cursor ;;
-      zsh*)  IFS=';' read -s -d R cursor ;;
+    bash*) IFS=';' read -r -d R -a cursor ;;
+    zsh*) IFS=';' read -s -d R cursor ;;
     esac
 
     IFS=$'\n'
@@ -112,15 +118,14 @@ __substitute_line() {
   # 入力中の内容を変数に代入
   # shellに応じて処理を変える
   case $(basename ${SHELL}) in
-    zsh*)  local buf=${BUFFER} ;;
-    bash*) local buf=${READLINE_LINE} ;;
+  zsh*) local buf=${BUFFER} ;;
+  bash*) local buf=${READLINE_LINE} ;;
   esac
 
   # カーソルの位置情報を取得する
   __get_cursor_position
 
-  while true
-  do
+  while true; do
     # 置換前のコマンドを2行目に表示する
     __print_buf
 
@@ -128,46 +133,45 @@ __substitute_line() {
     __print_substitute_prompt
 
     # 置換クエリの入力
-    while true
-    do
+    while true; do
       # get input key
       case "${SHELL##*/}" in
-        bash*) read -rsn1 input </dev/tty ;;
-        zsh*)  read -r -s -k 1 input </dev/tty ;;
+      bash*) read -rsn1 input </dev/tty ;;
+      zsh*) read -r -s -k 1 input </dev/tty ;;
       esac
 
       case "${input}" in
-        $'\x1B')
-          # no works
-          ;;
+      $'\x1B')
+        # no works
+        ;;
 
         # Delete(Backspace(\x7F)) key
-        $'\x7F')
-          local query_count=${#query}
-          if [[ $query_count -gt 0 ]];then
-            query_count=$((${query_count} - 1))
-            query=${query:0:${query_count}}
-            __print_substitute_prompt
-          fi
-          ;;
+      $'\x7F')
+        local query_count=${#query}
+        if [[ $query_count -gt 0 ]]; then
+          query_count=$((${query_count} - 1))
+          query=${query:0:${query_count}}
+          __print_substitute_prompt
+        fi
+        ;;
 
         # input Enter key
         # ""|$'\n')
-        ""|$'\n'|$'\r')
-          break
-          ;;
+      "" | $'\n' | $'\r')
+        break
+        ;;
 
-        # other key
-        *)
-          query=${query}${input}
-          __print_substitute_prompt
-          ;;
+      # other key
+      *)
+        query=${query}${input}
+        __print_substitute_prompt
+        ;;
       esac
     done
 
     # 入力されたクエリを利用してコマンドを置換
     old_buf=${buf}
-    buf=$(sed -f <(cat <<< ${query}) <<<${buf} 2>&1)
+    buf=$(sed -f <(cat <<<${query}) <<<${buf} 2>&1)
 
     # 置換結果を表示する
     __print_buf
@@ -176,32 +180,31 @@ __substitute_line() {
     __print_yn_prompt
 
     case "${SHELL##*/}" in
-      bash*) read -rsn1 input </dev/tty ;;
-      zsh*)  read -r -s -k 1 input </dev/tty ;;
+    bash*) read -rsn1 input </dev/tty ;;
+    zsh*) read -r -s -k 1 input </dev/tty ;;
     esac
     case "${input}" in
-      "y"|"Y")
-        __clear_print_data
-        break
-        ;;
-      *)
-        # bufを元に戻す
-        buf=${old_buf}
-        __clear_print_data
-        continue
-        ;;
+    "y" | "Y")
+      __clear_print_data
+      break
+      ;;
+    *)
+      # bufを元に戻す
+      buf=${old_buf}
+      __clear_print_data
+      continue
+      ;;
     esac
   done
 
   # 置換結果を反映
   # shellに応じて処理を変える
   case $(basename ${SHELL}) in
-    zsh*)
-      zle .reset-prompt
-      BUFFER=${buf}
-      CURSOR=${#BUFFER}
-      ;;
-    bash*) READLINE_LINE=${buf} ;;
+  zsh*)
+    zle .reset-prompt
+    BUFFER=${buf}
+    CURSOR=${#BUFFER}
+    ;;
+  bash*) READLINE_LINE=${buf} ;;
   esac
 }
-
